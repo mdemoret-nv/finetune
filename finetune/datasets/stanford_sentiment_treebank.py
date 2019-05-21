@@ -10,6 +10,7 @@ from finetune import Classifier
 from finetune.datasets import Dataset, generic_download
 from finetune.base_models.gpt.model import GPTModel
 from finetune.base_models.gpt2.model import GPT2Model
+from finetune.base_models.gpt.encoder import finetune_to_indico_attention_weights
 import joblib as jl
 logging.basicConfig(level=logging.DEBUG)
 
@@ -50,11 +51,15 @@ if __name__ == "__main__":
         lr_warmup=0.1,
         val_size=0, 
         max_length=64, 
-        base_model=GPT2Model, 
+        base_model=GPTModel, 
         tensorboard_folder="./sst"
     )
     print(model.config.base_model_path)
     trainX, testX, trainY, testY = train_test_split(dataset.Text.values, dataset.Target.values, test_size=0.3, random_state=42)
-    model.fit(trainX, trainY)
+    # model.fit(trainX, trainY)
+    attn_weights = model.attention_weights(trainX)
+    for weights in attn_weights:
+        print(finetune_to_indico_attention_weights(trainX, weights, model.input_pipeline.text_encoder))
+
     accuracy = np.mean(model.predict(testX) == testY)
     print('Test Accuracy: {:0.2f}'.format(accuracy))
