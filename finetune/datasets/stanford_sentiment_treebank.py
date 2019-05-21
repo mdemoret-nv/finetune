@@ -47,21 +47,33 @@ if __name__ == "__main__":
     dataset = StanfordSentimentTreebank(nrows=1000).dataframe
     model = Classifier(
         interpolate_pos_embed=False, 
-        n_epochs=3, 
+        n_epochs=2,
         batch_size=2, 
         lr_warmup=0.1,
-        val_size=0, 
-        max_length=64, 
-        base_model=GPTModel, 
+        val_size=0.0, 
+        max_length=64,
+        prefit_init=True,
+        base_model=GPTModel,
         tensorboard_folder="./sst"
     )
     print(model.config.base_model_path)
     trainX, testX, trainY, testY = train_test_split(dataset.Text.values, dataset.Target.values, test_size=0.3, random_state=42)
-    model.fit(trainX, trainY)
+
     start_idx = 0
-    num_samples = 50
-    text = trainX[start_idx:num_samples]
-    text_labels = trainY[start_idx:num_samples]
+    num_samples = 100
+    text = trainX[start_idx: start_idx + num_samples]
+    text_labels = trainY[start_idx: start_idx + num_samples]
+
+    model.fit(trainX, trainY)
+    accuracy = np.mean(model.predict(text) == text_labels)
+    print('Train Subset Accuracy: {:0.2f}'.format(accuracy))
+    
+    accuracy = np.mean(model.predict(trainX) == trainY)
+    print('Train Accuracy: {:0.2f}'.format(accuracy))
+    
+    accuracy = np.mean(model.predict(testX) == testY)
+    print('Test Accuracy: {:0.2f}'.format(accuracy))
+
     attn_weights = model.attention_weights(text) # [batch, n_layer, n_heads, seq_len, seq_len]
     # one piece of text at a time
     for text_id, weights in enumerate(attn_weights):
@@ -75,17 +87,8 @@ if __name__ == "__main__":
             output = finetune_to_indico_attention_weights([text[text_id]], attn, model.input_pipeline.text_encoder)[0]
             tokens = [text[text_id][s:e] for s, e in zip(output['token_starts'], output['token_ends'])]
             token_weights.append(output['attention_weights'])
-        plt.imshow(np.array(token_weights), vmin=0, vmax=1, aspect='equal')
+        plt.imshow(np.array(token_weights), vmin=0, vmax=np.array(token_weights).max(), aspect='equal')
         plt.xticks(ticks=range(len(tokens)), labels=tokens, rotation=60)
         plt.tight_layout()
-        plt.savefig('attn/attn{}.png'.format(text_id + start_idx))
-
-    accuracy = np.mean(model.predict(text) == text_labels)
-    print('Train Subset Accuracy: {:0.2f}'.format(accuracy))
-    
-    accuracy = np.mean(model.predict(trainX) == trainY)
-    print('Train Accuracy: {:0.2f}'.format(accuracy))
-    
-    accuracy = np.mean(model.predict(testX) == testY)
-    print('Test Accuracy: {:0.2f}'.format(accuracy))
+        plt.savefig('attn_2_epochs/attn{}.png'.format(text_id + start_idx))
 
