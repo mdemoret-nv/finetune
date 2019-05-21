@@ -196,7 +196,7 @@ def to_spacy_attn(attn, tokens, token_starts, token_ends):
     spacy_start = None
     for token, prob, start, end in zip(tokens, attn, token_starts, token_ends):
         to_combine.append(prob)
-        if not spacy_start:
+        if spacy_start is None:
             spacy_start = start
         if token.endswith('</w>'):
             spacy_attn.append(max(to_combine))
@@ -217,7 +217,7 @@ def finetune_to_indico_attention_weights(raw_texts, attn_weights, encoder):
     Maps the attention weights one-to-one with the raw text tokens.
     
     :param raw_texts: A list of segmented text of the form list(list(str))
-    :param attn_weights: An array of attention weights of shape [batch, seq_len]
+    :param attn_weights: An array of attention weights of shape [batch, n_heads, seq_len, seq_len]
     :param encoder: The encoder used in the model that output the attention weights
     :return: A list of dictionaries, each with the following keys:
     - 'attention_weights': A list of attention weights for each token in the text

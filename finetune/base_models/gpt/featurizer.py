@@ -165,6 +165,7 @@ def gpt_featurizer(X, encoder, config, train=False, reuse=None):
         X = tf.reshape(X, [-1, config.max_length, 2])
 
         h = embed(X, embed_weights)
+        w_list = []
         for layer in range(config.n_layer):
             if (config.n_layer - layer) == config.num_layers_trained and config.num_layers_trained != config.n_layer:
                 h = tf.stop_gradient(h)
@@ -184,11 +185,11 @@ def gpt_featurizer(X, encoder, config, train=False, reuse=None):
                     h_out = block_fn(h)
 
             # get the attention weights from the last layer
-            if layer == config.n_layer - 1:
-                with tf.variable_scope('h%d_/h%d/attn' % (layer, layer), reuse=True):
-                    q, k, v = multihead_qkv(h, n_state=shape_list(h)[-1], n_head=config.n_heads, train=train)
-                    w = attn_weights(q, k, v, attn_pdrop=config.attn_p_drop, train=train_layer, scale=True)
-
+            # if layer == config.n_layer - 1:
+            with tf.variable_scope('h%d_/h%d/attn' % (layer, layer), reuse=True):
+                q, k, v = multihead_qkv(h, n_state=shape_list(h)[-1], n_head=config.n_heads, train=train)
+                w = attn_weights(q, k, v, attn_pdrop=config.attn_p_drop, train=train_layer, scale=True)
+                w_list.append(w)
 
         # Use hidden state at classifier token as input to final proj. + softmax
         clf_h = tf.reshape(h_out, [-1, config.n_embed])  # [batch * seq_len, embed]
@@ -203,5 +204,5 @@ def gpt_featurizer(X, encoder, config, train=False, reuse=None):
             'features': clf_h,
             'sequence_features': seq_feats,
             'pool_idx': pool_idx,
-            'attention_weights': w  # [n_heads, seq_len, seq_len]
+            'attention_weights': tf.transpose(tf.stack(w_list), [1, 0, 2, 3, 4]) # [n_layer, n_heads, seq_len, seq_len] # w  # [n_heads, seq_len, seq_len]
         }

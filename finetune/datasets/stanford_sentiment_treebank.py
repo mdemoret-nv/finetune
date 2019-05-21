@@ -10,7 +10,8 @@ from finetune import Classifier
 from finetune.datasets import Dataset, generic_download
 from finetune.base_models.gpt.model import GPTModel
 from finetune.base_models.gpt2.model import GPT2Model
-from finetune.base_models.gpt.encoder import finetune_to_indico_attention_weights
+from finetune.base_models.gpt.encoder import finetune_to_indico_attention_weights, to_spacy_attn
+import matplotlib.pyplot as plt
 import joblib as jl
 logging.basicConfig(level=logging.DEBUG)
 
@@ -56,10 +57,35 @@ if __name__ == "__main__":
     )
     print(model.config.base_model_path)
     trainX, testX, trainY, testY = train_test_split(dataset.Text.values, dataset.Target.values, test_size=0.3, random_state=42)
-    # model.fit(trainX, trainY)
-    attn_weights = model.attention_weights(trainX)
-    for weights in attn_weights:
-        print(finetune_to_indico_attention_weights(trainX, weights, model.input_pipeline.text_encoder))
+    model.fit(trainX, trainY)
+    start_idx = 0
+    num_samples = 50
+    text = trainX[start_idx:num_samples]
+    text_labels = trainY[start_idx:num_samples]
+    attn_weights = model.attention_weights(text) # [batch, n_layer, n_heads, seq_len, seq_len]
+    # one piece of text at a time
+    for text_id, weights in enumerate(attn_weights):
+        # print("weights", weights.shape)
+        # each layer at a time
+        token_weights = []
+        for layer_weight in weights:
+            # print("layer_weight", layer_weight.shape)
+            attn = np.expand_dims(layer_weight, axis=0)
+            # print("attn", attn.shape)
+            output = finetune_to_indico_attention_weights([text[text_id]], attn, model.input_pipeline.text_encoder)[0]
+            tokens = [text[text_id][s:e] for s, e in zip(output['token_starts'], output['token_ends'])]
+            token_weights.append(output['attention_weights'])
+        plt.imshow(np.array(token_weights), vmin=0, vmax=1, aspect='equal')
+        plt.xticks(ticks=range(len(tokens)), labels=tokens, rotation=60)
+        plt.tight_layout()
+        plt.savefig('attn/attn{}.png'.format(text_id + start_idx))
 
+    accuracy = np.mean(model.predict(text) == text_labels)
+    print('Train Subset Accuracy: {:0.2f}'.format(accuracy))
+    
+    accuracy = np.mean(model.predict(trainX) == trainY)
+    print('Train Accuracy: {:0.2f}'.format(accuracy))
+    
     accuracy = np.mean(model.predict(testX) == testY)
     print('Test Accuracy: {:0.2f}'.format(accuracy))
+
