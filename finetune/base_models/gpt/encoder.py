@@ -237,7 +237,9 @@ def finetune_to_indico_attention_weights(raw_texts, attn_weights, encoder):
         # offset of one to take into account the start token
         clf_token_idx = len(tokens) + 1
         # take the average values over the attention heads for the attention weights of the classify token 
-        attn = np.mean(attn_weights[doc_idx], axis=0)[clf_token_idx][1:clf_token_idx]  # [num_tokens]
+        # attn = np.mean(attn_weights[doc_idx], axis=0)[clf_token_idx][1:clf_token_idx]  # [num_tokens]
+        # take the average values over the attention heads and all the attention weights
+        attn = np.mean(attn_weights[doc_idx], axis=(0, 1))[1:clf_token_idx]  # [num_tokens]
         # map one-to-one with spacy tokenization
         spacy_output = to_spacy_attn(attn, tokens, token_starts, token_ends)
         spacy_outputs.append(spacy_output)
