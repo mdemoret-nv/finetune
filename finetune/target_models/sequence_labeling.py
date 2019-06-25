@@ -24,7 +24,6 @@ class SequencePipeline(BasePipeline):
         super()._post_data_initialization(Y_, context)
 
     def text_to_tokens_mask(self, X, Y=None, context=None):
-        print(Y)
         pad_token = [self.config.pad_token] if self.multi_label else self.config.pad_token
         out_gen = self._text_to_ids(X, Y=Y, pad_token=pad_token, context=context)
         for out in out_gen:
@@ -182,8 +181,7 @@ class SequenceLabeler(BaseModel):
         if self.config.use_auxiliary_info:
             context = Xs[1]
             Xs = Xs[0]
-        print(Y)
-        Xs, Y_new, *_ = indico_to_finetune_sequence(
+        Xs, Y_new, _, _, _, context_new = indico_to_finetune_sequence(
             Xs,
             encoder=self.input_pipeline.text_encoder,
             labels=Y,
@@ -192,7 +190,8 @@ class SequenceLabeler(BaseModel):
             context=context
         )
         Y = Y_new if Y is not None else None
-        print(Y)
+        context = context_new if context is not None else None
+
         if self.config.use_auxiliary_info:
             Xs = [Xs, context]
 
