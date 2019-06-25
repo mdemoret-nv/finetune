@@ -23,24 +23,20 @@ class SequencePipeline(BasePipeline):
         Y_ = list(itertools.chain.from_iterable(Y))
         super()._post_data_initialization(Y_, context)
 
-    def text_to_tokens_mask(self, X, Y=None, context = None):
+    def text_to_tokens_mask(self, X, Y=None, context=None):
+        print(Y)
         pad_token = [self.config.pad_token] if self.multi_label else self.config.pad_token
-        out_gen = self._text_to_ids(X, Y=Y, pad_token=pad_token)
+        out_gen = self._text_to_ids(X, Y=Y, pad_token=pad_token, context=context)
         for out in out_gen:
-            feats = {"tokens": out.token_ids, "mask": out.mask}
+            feats = {"tokens": out.token_ids, "mask": out.mask, "context": self._context_to_vector([context])}
             if Y is None:
-                yield feats, context
+                yield feats
             if Y is not None:
-                yield feats, context, self.label_encoder.transform(out.labels)
-
-            #if Y is None:
-            #    yield feats
-            #else:
-            #    yield feats, self.label_encoder.transform(out.labels)
+                yield feats, self.label_encoder.transform(out.labels)
 
     def _compute_class_counts(self, encoded_dataset):
         counter = Counter()
-        for doc, context, target_arr in encoded_dataset:
+        for doc, target_arr in encoded_dataset:
             targets = target_arr[doc['mask'].astype(np.bool)]
             counter.update(
                 self.label_encoder.inverse_transform(targets)
@@ -63,14 +59,16 @@ class SequencePipeline(BasePipeline):
             (
                 {
                     "tokens": tf.int32,
-                    "mask": tf.float32
+                    "mask": tf.float32,
+                    "context": tf.float32
                 },
                 tf.int32
             ),
             (
                 {
                     "tokens": TS([self.config.max_length, 2]),
-                    "mask": TS([self.config.max_length])
+                    "mask": TS([self.config.max_length]),
+                    "context": TS([self.config.max_length, self.context_dim])
                 },
                 TS(target_shape)
             )
@@ -180,18 +178,21 @@ class SequenceLabeler(BaseModel):
         return super()._initialize()
 
     def finetune(self, Xs, Y=None, batch_size=None):
+        context=None
         if self.config.use_auxiliary_info:
             context = Xs[1]
             Xs = Xs[0]
+        print(Y)
         Xs, Y_new, *_ = indico_to_finetune_sequence(
             Xs,
             encoder=self.input_pipeline.text_encoder,
             labels=Y,
             multi_label=self.multi_label,
-            none_value=self.config.pad_token
+            none_value=self.config.pad_token,
+            context=context
         )
         Y = Y_new if Y is not None else None
-
+        print(Y)
         if self.config.use_auxiliary_info:
             Xs = [Xs, context]
 
