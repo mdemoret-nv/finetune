@@ -27,7 +27,7 @@ class SequencePipeline(BasePipeline):
         pad_token = [self.config.pad_token] if self.multi_label else self.config.pad_token
         out_gen = self._text_to_ids(X, Y=Y, pad_token=pad_token, context=context)
         for out in out_gen:
-            feats = {"tokens": out.token_ids, "mask": out.mask, "context": self._context_to_vector([context])}
+            feats = {"tokens": out.token_ids, "mask": out.mask, "context": self._context_to_vector([out.context])}
             if Y is None:
                 yield feats
             if Y is not None:
@@ -189,12 +189,12 @@ class SequenceLabeler(BaseModel):
             none_value=self.config.pad_token,
             context=context
         )
+
         Y = Y_new if Y is not None else None
-        context = context_new if context is not None else None
+        #context = context_new if context is not None else None
 
         if self.config.use_auxiliary_info:
             Xs = [Xs, context]
-
         return super().finetune(Xs, Y=Y, batch_size=batch_size)
 
     def predict(self, X, per_token=False):
