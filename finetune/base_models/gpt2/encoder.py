@@ -139,7 +139,7 @@ class GPT2Encoder(BaseEncoder):
             if labels is not None:
                 label = labels[i]
             if context is not None:
-                context_ = context[i]
+                context_ = context
 
             subtokens = []
             subtoken_idxs = []
@@ -172,14 +172,31 @@ class GPT2Encoder(BaseEncoder):
             batch_character_locs.append(tok_pos)
             if labels is not None:
                 batch_label_idxs.append([label] * len(subtoken_idxs))
+        
+            # Context is tokenwise, so we need to duplicate contexts for each subtoken of a token, and to match length of labels
+            batch_context = None
             if context_ is not None:
-                batch_context_idxs.append([context_] * len(subtoken_idxs))
+                token_starts = [context['start'] for context in context_]
+                original_tokens = []
+                print(token_starts)
+                print(batch_character_locs[0])
+                for char_loc in batch_character_locs[0]:
+                    original_token=-1
+                    for i in range(len(token_starts)):
+                        if char_loc >= token_starts[i]:
+                            original_token += 1
+                    original_tokens.append(original_token)
+
+                batch_context = [None]*len(original_tokens)
+                for i in range(len(batch_context)):
+                    batch_context[i] = context_[original_tokens[i]]
+                batch_context = [batch_context]
 
         return EncodedOutput(
             token_ids=batch_token_idxs,
             tokens=batch_tokens,
             labels=batch_label_idxs,
-            context=batch_context_idxs,
+            context=batch_context,
             char_locs=batch_character_locs
         )
 

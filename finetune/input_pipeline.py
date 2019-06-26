@@ -87,8 +87,7 @@ class BasePipeline(metaclass=ABCMeta):
             labels_arr = None
 
         if encoded_output.context is not None:
-            context_arr = np.empty((self.config.max_length, self.config.context_dim), dtype='object')
-            context_arr.fill((pad_token or self.config.pad_token))
+            context_arr = np.zeros((self.config.max_length, self.config.context_dim), dtype=np.float32)
 
         # BPE embedding
         x[:seq_length, 0] = encoded_output.token_ids
@@ -154,18 +153,19 @@ class BasePipeline(metaclass=ABCMeta):
             """
             num_samples = len(context)
             vector_list = []
+            
 
             if not hasattr(self, 'label_encoders'): # we will fit necessary label encoders here to know dimensionality of input vector before entering featurizer
                 characteristics = itertools.chain.from_iterable(context)
                 characteristics = pd.DataFrame(characteristics).to_dict('list')
-
+                
                 self.label_encoders = {k:LabelBinarizer() for k in characteristics.keys() if 
-                all(k != self.config.pad_token and not (type(data) == int or (type(data) == float and not pd.isna(data))) for data in characteristics[k])} # Excludes features that are continuous, like position and font size, since they do not have categorical binary encodings
+                all(k != self.config.pad_token and not (type(data) == int or (type(data) == float and not pd.isna(data))) and k != 'label' for data in characteristics[k])} # Excludes features that are continuous, like position and font size, since they do not have categorical binary encodings
                 for label, encoder in self.label_encoders.items():
                     without_nans = [x for x in characteristics[label] if not pd.isna(x)]
                     encoder.fit(without_nans)
 
-                self.context_labels = sorted(characteristics.keys()) # sort for consistent ordering between runs
+                self.context_labels = sorted([label for label in characteristics.keys() if label != 'label']) # sort for consistent ordering between runs
                 continuous_labels = [label for label in self.context_labels if label not in self.label_encoders.keys()]
 
                 self.context_dim = len(continuous_labels) # Sum over features to determine dimensionality of each feature vector.
@@ -175,8 +175,6 @@ class BasePipeline(metaclass=ABCMeta):
                 return True
 
             for sample in context:
-                #sample = sample[1:len(context)-2] # remove special tokens
-                print(sample)
                 # See which tokens have padded labels/context vectors, and thus have a zero vector for features
                 padded_indices = []
                 tokens_with_context=[]
@@ -185,14 +183,7 @@ class BasePipeline(metaclass=ABCMeta):
                         padded_indices.append(idx)
                     else:
                         tokens_with_context.append(sample[idx])
-
-                #if len(sample) > 1:
                 characteristics = pd.DataFrame(tokens_with_context).to_dict('list')
-                #else:
-                #    characteristics = {k:[v] for k,v in sample.pop().items()}
-                print(characteristics)
-                print("padded indices:")
-                print(padded_indices)
 
                 # make sure all features cover the same number of tokens, and calculate total num tokens
                 num_tokens = None
@@ -201,11 +192,8 @@ class BasePipeline(metaclass=ABCMeta):
                     if num_tokens is not None and num_tokens != new_length:
                         raise FinetuneError('Incorrect label shapes.')
                     num_tokens = new_length
-                
-                print("INPUT PIPELINE NUM TOKENS")
-                print(num_tokens)
 
-                vector = np.zeros((num_tokens + len(padded_indices), self.config.context_dim)) # Feature vector for one document. Add 2 for the special tokens at beginning/end
+                vector = np.zeros((num_tokens + len(padded_indices), self.config.context_dim), dtype=np.float32) # Feature vector for one document. Add 2 for the special tokens at beginning/end
                 current_index = 0
 
                 # Loop through each feature and add each to new index of the feature vector
@@ -224,7 +212,7 @@ class BasePipeline(metaclass=ABCMeta):
                     else:
                         data = [x for x in data if not pd.isna(x)]
                         data_dim = 1
-
+                    
                     #loop through indices and fill with correct data
                     num_backward = 0
                     for sample_idx in range(num_tokens):
@@ -234,9 +222,6 @@ class BasePipeline(metaclass=ABCMeta):
                             continue
                         for label_dimension in range(data_dim):
                             #print("Label dim:" + str(label_dimension + current_index) + "Sample Index:" + str(sample_idx) + "Current label" + label)
-                            #if self.config.pad_token in sample[sample_idx]: 
-                            #    vector[sample_idx][current_index + label_dimension] = 0
-                            #else:
                             vector[sample_idx][current_index + label_dimension] = data[sample_idx - num_backward] if data_dim  == 1 else data[sample_idx - num_backward][label_dimension]
 
                     current_index += 1
@@ -425,8 +410,6 @@ class BasePipeline(metaclass=ABCMeta):
 
             Xs_tr, Y_tr = self.resampling(Xs_tr, Y_tr)
             self.config.dataset_size = len(Xs_tr)
-
-            print(self.config.dataset_size)
             val_dataset_unbatched = self._make_dataset(Xs_va, Y_va, C_va, train=False)
             train_dataset_unbatched = self._make_dataset(Xs_tr, Y_tr, C_tr, train=True)
 
@@ -485,7 +468,6 @@ class BasePipeline(metaclass=ABCMeta):
                 context=context
             )
             processed_context = self._context_to_vector([encoded.context])
-            print(np.shape(processed_context))
             length = len(encoded.token_ids)
             starts = list(range(0, length, step_size))
             for start in starts:

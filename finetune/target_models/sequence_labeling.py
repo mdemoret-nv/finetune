@@ -27,7 +27,7 @@ class SequencePipeline(BasePipeline):
         pad_token = [self.config.pad_token] if self.multi_label else self.config.pad_token
         out_gen = self._text_to_ids(X, Y=Y, pad_token=pad_token, context=context)
         for out in out_gen:
-            feats = {"tokens": out.token_ids, "mask": out.mask, "context": self._context_to_vector([out.context])}
+            feats = {"tokens": out.token_ids, "mask": out.mask, "context": out.context}
             if Y is None:
                 yield feats
             if Y is not None:
