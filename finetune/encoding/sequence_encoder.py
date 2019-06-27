@@ -311,6 +311,8 @@ def indico_to_finetune_sequence(texts, labels=None, encoder=None, multi_label=Tr
     encoded_docs = encoder._encode(texts)
     labels = copy.deepcopy(labels)
     context = copy.deepcopy(context)
+    print("LABELS")
+    print(labels)
     for doc_idx, (text, label_seq, context_seq) in enumerate(zip(texts, labels, context)):
         tokens = encoded_docs.tokens[doc_idx]
         token_ends = encoded_docs.char_locs[doc_idx]
@@ -412,6 +414,7 @@ def indico_to_finetune_sequence(texts, labels=None, encoder=None, multi_label=Tr
         if not multi_label:
             # if `multi_label_sequences` is False, flatten labels
             for annotation in all_annotations:
+                print(annotation['label'])
                 assert len(annotation['label']) == 1
                 annotation['label'] = annotation['label'][0]
 

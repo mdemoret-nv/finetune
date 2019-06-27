@@ -132,8 +132,15 @@ class GPT2Encoder(BaseEncoder):
         batch_label_idxs = []
         batch_context_idxs = []
         batch_character_locs = []
+        batch_context = []
         label = None
         context_ = None
+
+        '''
+        print("ENCODE INFO")
+        print(texts)
+        print(context)
+        '''
 
         for i, text in enumerate(texts):
             if labels is not None:
@@ -174,23 +181,27 @@ class GPT2Encoder(BaseEncoder):
                 batch_label_idxs.append([label] * len(subtoken_idxs))
         
             # Context is tokenwise, so we need to duplicate contexts for each subtoken of a token, and to match length of labels
-            batch_context = None
             if context_ is not None:
-                token_starts = [context['start'] for context in context_]
+                single_example=False
+                try:
+                    token_starts = [context['start'] for context in context_]
+                except TypeError: # only one token of context, so the start must be 0 TODO: find out why this throws such an error
+                    token_starts = [0]
+                    single_example=True
                 original_tokens = []
-                print(token_starts)
-                print(batch_character_locs[0])
-                for char_loc in batch_character_locs[0]:
+                for char_loc in batch_character_locs[i]:
                     original_token=-1
                     for i in range(len(token_starts)):
                         if char_loc >= token_starts[i]:
                             original_token += 1
                     original_tokens.append(original_token)
+                expanded_context = [None]*len(original_tokens)
+                for j in range(len(expanded_context)):
+                    expanded_context[j] =  context_ if single_example else context_[original_tokens[j]]
+                batch_context.append(expanded_context)
 
-                batch_context = [None]*len(original_tokens)
-                for i in range(len(batch_context)):
-                    batch_context[i] = context_[original_tokens[i]]
-                batch_context = [batch_context]
+                assert len(expanded_context) == len(subtoken_idxs) and len(expanded_context) == len(tok_pos)
+                
 
         return EncodedOutput(
             token_ids=batch_token_idxs,
