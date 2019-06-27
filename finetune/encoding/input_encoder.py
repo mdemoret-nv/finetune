@@ -167,7 +167,8 @@ class BaseEncoder(object):
         positions = []
         labels = []
         contexts = []
-        context = context[0]
+        if context is not None:
+            context = context[0]
 
         # for each field in that example
         for i, field in enumerate(Xs):

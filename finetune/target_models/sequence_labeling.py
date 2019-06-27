@@ -39,7 +39,10 @@ class SequencePipeline(BasePipeline):
 
         out_gen = self._text_to_ids(X, Y=Y, pad_token=pad_token, context=context)
         for out in out_gen:
-            feats = {"tokens": out.token_ids, "mask": out.mask, "context": out.context}
+            if self.config.use_auxiliary_info:
+                feats = {"tokens": out.token_ids, "mask": out.mask, "context": out.context}
+            else:
+                feats = {"tokens": out.token_ids, "mask": out.mask}
             if Y is None:
                 yield feats
             if Y is not None:
@@ -66,24 +69,42 @@ class SequencePipeline(BasePipeline):
             [self.config.max_length, self.label_encoder.target_dim]
             if self.multi_label else [self.config.max_length]
         )
-        return (
-            (
-                {
-                    "tokens": tf.int32,
-                    "mask": tf.float32,
-                    "context": tf.float32
-                },
-                tf.int32
-            ),
-            (
-                {
-                    "tokens": TS([self.config.max_length, 2]),
-                    "mask": TS([self.config.max_length]),
-                    "context": TS([self.config.max_length, self.context_dim])
-                },
-                TS(target_shape)
+        if self.config.use_auxiliary_info:
+            return (
+                (
+                    {
+                        "tokens": tf.int32,
+                        "mask": tf.float32,
+                        "context": tf.float32
+                    },
+                    tf.int32
+                ),
+                (
+                    {
+                        "tokens": TS([self.config.max_length, 2]),
+                        "mask": TS([self.config.max_length]),
+                        "context": TS([self.config.max_length, self.context_dim])
+                    },
+                    TS(target_shape)
+                )
             )
-        )
+        else:
+            return (
+                (
+                    {
+                        "tokens": tf.int32,
+                        "mask": tf.float32
+                    },
+                    tf.int32
+                ),
+                (
+                    {
+                        "tokens": TS([self.config.max_length, 2]),
+                        "mask": TS([self.config.max_length])
+                    },
+                    TS(target_shape)
+                )
+            )
 
     def _target_encoder(self):
         if self.multi_label:

@@ -141,7 +141,7 @@ class GPT2Encoder(BaseEncoder):
         print(texts)
         print(context)
         '''
-
+        #print(texts)
         for i, text in enumerate(texts):
             if labels is not None:
                 label = labels[i]

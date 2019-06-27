@@ -406,6 +406,8 @@ class BaseModel(object, metaclass=ABCMeta):
         if self.config.use_auxiliary_info:
             context = Xs[1]
             Xs = Xs[0]
+        else:
+            context = None
         Xs = self.input_pipeline._format_for_inference(Xs)
 
         if self._cached_predict:

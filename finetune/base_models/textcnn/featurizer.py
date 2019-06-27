@@ -38,13 +38,14 @@ def textcnn_featurizer(X, encoder, config, train=False, reuse=None, context=None
                 initializer=tf.random_normal_initializer(stddev=config.weight_stddev)
             )
 
-
         if config.train_embeddings:
             embed_weights = dropout(embed_weights, config.embed_p_drop, train)
-            context_embed_weights = dropout(context_embed_weights, config.embed_p_drop, train)
+            if config.use_auxiliary_info:
+                context_embed_weights = dropout(context_embed_weights, config.embed_p_drop, train)
         else:
-            embed_weights = tf.stop_gradient(context_embed_weights)
-            context_embed_weights = tf.stop_gradient(context_embed_weights)
+            embed_weights = tf.stop_gradient(embed_weights)
+            if config.use_auxiliary_info:
+                context_embed_weights = tf.stop_gradient(context_embed_weights)
 
         X = tf.reshape(X, [-1, config.max_length, 2])
 
