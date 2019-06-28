@@ -222,9 +222,7 @@ class SequenceLabeler(BaseModel):
             none_value=self.config.pad_token,
             context=context
         )
-
         Y = Y_new if Y is not None else None
-        #context = context_new if context is not None else None
 
         if self.config.use_auxiliary_info:
             Xs = [Xs, context]
