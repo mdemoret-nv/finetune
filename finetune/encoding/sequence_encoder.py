@@ -333,8 +333,6 @@ def indico_to_finetune_sequence(texts, labels=None, encoder=None, multi_label=Tr
             #context['idx'] = i
             # Check user hasn't accidentally mislabeled something
             if label.get('text') is not None and label['text'] != text[label['start']:label['end']]:
-                print(text)
-                print(label)
                 raise ValueError(
                     "Annotation text does not match text specified by `start` and `end` indexes. "
                     "Text provided: `{}`.  Text extracted: `{}`.".format(
