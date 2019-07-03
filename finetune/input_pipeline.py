@@ -13,7 +13,7 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow.python.data import Dataset
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MultiLabelBinarizer, LabelBinarizer
+from sklearn.preprocessing import LabelBinarizer
 import finetune
 from finetune.errors import FinetuneError
 from finetune.encoding.input_encoder import ArrayEncodedOutput, EncodedOutput
@@ -27,7 +27,6 @@ class BasePipeline(metaclass=ABCMeta):
         self.config = config
         self.text_encoder = self.config.base_model.get_encoder()
         self.label_encoder = None
-        self.context_encoder = MultiLabelBinarizer()
         self.target_dim = None
         self.pad_idx_ = None
         self.rebuild = False
@@ -110,9 +109,7 @@ class BasePipeline(metaclass=ABCMeta):
         if encoded_output.labels:
             labels_arr[:seq_length] = encoded_output.labels
         if encoded_output.context is not None:
-            if len(np.shape(encoded_output.context)) == 3:
-                context_arr[:seq_length][:] = np.squeeze(encoded_output.context)
-            elif len(np.shape(encoded_output.context)) == 2:
+            if len(np.shape(encoded_output.context)) in (2,3):
                 context_arr[:seq_length][:] = np.squeeze(encoded_output.context)
             else:
                 raise FinetuneError('Incorrect context rank.')
