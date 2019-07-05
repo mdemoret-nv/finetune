@@ -226,14 +226,14 @@ def get_default_config():
     """
     settings = Settings(
         # General Settings
-        low_memory_mode=True,
+        low_memory_mode=False,
         interpolate_pos_embed=False,
         save_adam_vars=True,
         shuffle_buffer_size=100,
         dataset_size=None,
         batch_size=2,
         visible_gpus=None, # defaults to all available
-        n_epochs=GridSearchable(400, [1, 2, 3, 4]),
+        n_epochs=GridSearchable(3, [1, 2, 3, 4]),
         seed=42,
         max_length=512,
         weight_stddev=0.02,
