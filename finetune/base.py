@@ -144,6 +144,7 @@ class BaseModel(object, metaclass=ABCMeta):
             Xs = Xs[0]
         else:
             context = None
+            self.input_pipeline.context_dim=None
 
         batch_size = batch_size or self.config.batch_size
         val_input_fn, train_input_fn, val_size, val_interval = self.input_pipeline.get_train_input_fns(Xs, Y, context=context, batch_size=batch_size)
@@ -157,7 +158,7 @@ class BaseModel(object, metaclass=ABCMeta):
                 )
 
         force_build_lm = (Y is None)
-        estimator, hooks = self.get_estimator(force_build_lm=force_build_lm)
+        estimator, hooks = self.get_estimator(force_build_lm=force_build_lm, context_dim=self.input_pipeline.context_dim)
         train_hooks = hooks.copy()
 
         steps_per_epoch = self._n_steps(
@@ -273,7 +274,7 @@ class BaseModel(object, metaclass=ABCMeta):
         )
         return config
 
-    def get_estimator(self, force_build_lm=False, build_explain=False):
+    def get_estimator(self, force_build_lm=False, build_explain=False, context_dim=None):
         config = self._get_estimator_config()
 
         model_fn = get_model_fn(
@@ -286,7 +287,8 @@ class BaseModel(object, metaclass=ABCMeta):
             target_dim=self.input_pipeline.target_dim,
             label_encoder=self.input_pipeline.label_encoder,
             saver=self.saver,
-            build_explain=build_explain
+            build_explain=build_explain,
+            context_dim=context_dim
         )
         hooks = [InitializeHook(self.saver)]
         est = tf.estimator.Estimator(
@@ -414,7 +416,7 @@ class BaseModel(object, metaclass=ABCMeta):
             return self._cached_inference(Xs=Xs, predict_keys=predict_keys, n_examples=n_examples)
         else:
             input_fn = self.input_pipeline.get_predict_input_fn(Xs, context=context)
-            estimator, hooks = self.get_estimator(build_explain=PredictMode.EXPLAIN in predict_keys)
+            estimator, hooks = self.get_estimator(build_explain=PredictMode.EXPLAIN in predict_keys, context_dim=self.input_pipeline.context_dim)
             length = len(Xs) if not callable(Xs) else None
 
             predictions = tqdm.tqdm(

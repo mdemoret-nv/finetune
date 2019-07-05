@@ -32,6 +32,7 @@ ArrayEncodedOutput = namedtuple("ArrayEncodedOutput", [
     "char_locs", # list of list of char_locs (int) passed through from `EncoderOutput`
     "mask",      # int array shape (batch, seq_length)
     "context",   # list of list of context token characteristics
+    "context_dim", # int specifying the dimensionality of each context vector
 ])
 ArrayEncodedOutput.__new__.__defaults__ = (None,) * len(ArrayEncodedOutput._fields)
 

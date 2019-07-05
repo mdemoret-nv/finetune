@@ -2,7 +2,7 @@ import tensorflow as tf
 from finetune.base_models.gpt.featurizer import dropout, embed, norm
 
 
-def textcnn_featurizer(X, encoder, config, train=False, reuse=None, context=None, **kwargs):
+def textcnn_featurizer(X, encoder, config, train=False, reuse=None, context=None, context_dim=None, **kwargs):
     """
     The transformer element of the finetuning model. Maps from tokens ids to a dense, embedding of the sequence.
 
@@ -29,12 +29,12 @@ def textcnn_featurizer(X, encoder, config, train=False, reuse=None, context=None
         if config.use_auxiliary_info:
             context_embed_weights = tf.get_variable(
                 name="ce",
-                shape=[config.context_dim, config.n_embed_featurizer],
+                shape=[context_dim, config.n_embed_featurizer],
                 initializer=tf.random_normal_initializer(stddev=config.weight_stddev))
 
             context_weighted_avg = tf.get_variable(
                 name='cwa',
-                shape=[config.context_dim],
+                shape=[context_dim],
                 initializer=tf.random_normal_initializer(stddev=config.weight_stddev)
             )
 

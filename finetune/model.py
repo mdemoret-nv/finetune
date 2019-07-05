@@ -37,7 +37,7 @@ class PredictMode:
     EXPLAIN = "EXPLAIN"
 
 def get_model_fn(target_model_fn, predict_op, predict_proba_op, build_target_model, build_lm, encoder, target_dim,
-                 label_encoder, saver, build_explain):
+                 label_encoder, saver, build_explain, context_dim):
     def language_model_op(X, M, params, featurizer_state):
         language_model_state = language_model(
             X=X,
@@ -109,6 +109,7 @@ def get_model_fn(target_model_fn, predict_op, predict_proba_op, build_target_mod
                 config=params,
                 train=train,
                 context=C,
+                context_dim=context_dim,
                 explain=build_explain, 
             )
             predictions = {PredictMode.FEATURIZE: featurizer_state["features"]}
@@ -253,11 +254,16 @@ def get_separate_model_fns(target_model_fn, predict_op, predict_proba_op, build_
     def _featurizer_model_fn(features, labels, mode, params):
         assert mode == tf.estimator.ModeKeys.PREDICT, "mode MUST be predict - model fns should not be separated on train"
         X = features["tokens"]
+        C = features.get("context", None)
+        C_dim = features.get("context_dim", None)
         featurizer_state = params.base_model.get_featurizer(
                 X,
                 encoder=encoder,
                 config=params,
-                train=False
+                train=False,
+                context=C,
+                context_dim=C_dim
+                
         )
         predictions = {'features': featurizer_state['features'],
                     'sequence_features': featurizer_state['sequence_features'],
