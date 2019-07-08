@@ -42,6 +42,7 @@ def textcnn_featurizer(X, encoder, config, train=False, reuse=None, context=None
             embed_weights = dropout(embed_weights, config.embed_p_drop, train)
             if config.use_auxiliary_info:
                 context_embed_weights = dropout(context_embed_weights, config.embed_p_drop, train)
+                context_weighted_avg = dropout(context_weighted_avg, config.embed_p_drop, train)
         else:
             embed_weights = tf.stop_gradient(embed_weights)
             if config.use_auxiliary_info:

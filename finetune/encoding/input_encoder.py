@@ -169,10 +169,6 @@ class BaseEncoder(object):
         labels = []
         contexts = []
 
-        
-        #if context is not None:
-        #    context = [context]
-        
         # for each field in that example
         for i, field in enumerate(Xs):
             assert isinstance(field, (list, tuple)), "This should be a list of strings, instead it's {}".format(

@@ -202,9 +202,9 @@ class BasePipeline(metaclass=ABCMeta):
                     self.label_stats[label] = stats
 
                 self.context_dim = len(continuous_labels) # Sum over features to determine dimensionality of each feature vector.
+
                 for encoder in self.label_encoders.values(): # since categorical labels use LabelBinarizer, they use varying dimensions each for each one-hot-encoding, while numerical features only use 1 dimension, so we sum over all for the total dimension.
                     self.context_dim += 1 if len(encoder.classes_) == 1 else len(encoder.classes_) # Binary encodings with only two classes are given with one bit. Encodings with n > 1 classes are given with n bits. (Thanks sklearn)
-                self.config.context_dim = self.context_dim
                 return True
 
             for sample in context:
@@ -226,7 +226,7 @@ class BasePipeline(metaclass=ABCMeta):
                         raise FinetuneError('Incorrect label shapes.')
                     num_tokens = new_length
 
-                vector = np.zeros((num_tokens + len(padded_indices), self.config.context_dim), dtype=np.float32) # Feature vector for one document. Add 2 for the special tokens at beginning/end
+                vector = np.zeros((num_tokens + len(padded_indices), self.context_dim), dtype=np.float32) # Feature vector for one document. Add 2 for the special tokens at beginning/end
                 current_index = 0
 
                 # Loop through each feature and add each to new index of the feature vector
@@ -259,6 +259,7 @@ class BasePipeline(metaclass=ABCMeta):
                             vector[sample_idx][current_index + label_dimension] = data[sample_idx - num_backward] if data_dim  == 1 else data[sample_idx - num_backward][label_dimension]
                     current_index += 1
                 vector_list.append(vector)
+                #print(vector_list)
             return vector_list
 
 

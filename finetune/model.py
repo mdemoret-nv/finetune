@@ -102,7 +102,6 @@ def get_model_fn(target_model_fn, predict_op, predict_proba_op, build_target_mod
 
         with tf.variable_scope(tf.get_variable_scope()):
             train_loss = 0.0
-
             featurizer_state = params.base_model.get_featurizer(
                 X,
                 encoder=encoder,
