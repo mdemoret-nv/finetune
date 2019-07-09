@@ -205,7 +205,6 @@ class BaseModel(object, metaclass=ABCMeta):
                 eval_frequency=early_stopping_interval
             )
         )
-        print(tf.trainable_variables())
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if self.config.prefit_init:

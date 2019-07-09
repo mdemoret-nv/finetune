@@ -201,7 +201,6 @@ class BaseEncoder(object):
             special_tokens=-1
         )
 
-
         if context is None:
             contexts = None
         else:

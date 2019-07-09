@@ -96,6 +96,8 @@ def get_model_fn(target_model_fn, predict_op, predict_proba_op, build_target_mod
         X = features["tokens"]
         M = features["mask"]
         C = features.get("context", None)
+        if params.use_auxiliary_info:
+            assert C is not None
         task_id = features.get("task_id", None)
         Y = labels
         pred_op = None
