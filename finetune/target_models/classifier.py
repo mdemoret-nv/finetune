@@ -12,15 +12,45 @@ from finetune.base_models.gpt.encoder import finetune_to_indico_explain
 
 
 class ClassificationPipeline(BasePipeline):
-
     def resampling(self, Xs, Y):
         if self.config.oversample:
-            idxs, Ys = shuffle(*RandomOverSampler().fit_sample([[i] for i in range(len(Xs))], Y))
+            idxs, Ys = shuffle(
+                *RandomOverSampler().fit_sample([[i] for i in range(len(Xs))], Y)
+            )
             return [Xs[i[0]] for i in idxs], Ys
         return Xs, Y
 
     def _target_encoder(self):
         return OneHotLabelEncoder()
+
+    def feed_shape_type_def(self):
+        TS = tf.TensorShape
+        if self.config.use_auxiliary_info:
+            return (
+                (
+                    {"tokens": tf.int32, "mask": tf.float32, "context": tf.float32},
+                    tf.int32,
+                ),
+                (
+                    {
+                        "tokens": TS([self.config.max_length, 2]),
+                        "mask": TS([self.config.max_length]),
+                        "context": TS([self.config.max_length, self.context_dim]),
+                    },
+                    TS([self.target_dim]),
+                ),
+            )
+        else:
+            return (
+                ({"tokens": tf.int32, "mask": tf.float32}, tf.int32),
+                (
+                    {
+                        "tokens": TS([self.config.max_length, 2]),
+                        "mask": TS([self.config.max_length]),
+                    },
+                    TS([self.target_dim]),
+                ),
+            )
 
 
 class Classifier(BaseModel):
@@ -59,6 +89,9 @@ class Classifier(BaseModel):
         :param X: list or array of text to embed.
         :returns: list of dictionaries.  Each dictionary maps from a class label to its assigned class probability.
         """
+        if self.config.use_auxiliary_info:
+            context = X[1]
+            text = X[0]
         return super().predict_proba(X)
 
     def finetune(self, X, Y=None, batch_size=None):
@@ -68,25 +101,36 @@ class Classifier(BaseModel):
         :param batch_size: integer number of examples per batch. When N_GPUS > 1, this number
                            corresponds to the number of training examples provided to each GPU.
         """
+        if self.config.use_auxiliary_info:
+            context = X[1]
+            X = X[0]
+            context_new = self.process_context(context, X)
+            X = [X, context_new]
         return super().finetune(X, Y=Y, batch_size=batch_size)
 
     @classmethod
     def get_eval_fn(cls):
-        return lambda labels, targets: np.mean(np.asarray(labels) == np.asarray(targets))
+        return lambda labels, targets: np.mean(
+            np.asarray(labels) == np.asarray(targets)
+        )
 
     @staticmethod
-    def _target_model(config, featurizer_state, targets, n_outputs, train=False, reuse=None, **kwargs):
+    def _target_model(
+        config, featurizer_state, targets, n_outputs, train=False, reuse=None, **kwargs
+    ):
         if "explain_out" in featurizer_state:
-            shape = tf.shape(featurizer_state['explain_out']) # batch, seq, hidden
-            flat_explain = tf.reshape(featurizer_state['explain_out'], [shape[0] * shape[1], shape[2]])
-            hidden = tf.concat((featurizer_state["features"],flat_explain), 0)
+            shape = tf.shape(featurizer_state["explain_out"])  # batch, seq, hidden
+            flat_explain = tf.reshape(
+                featurizer_state["explain_out"], [shape[0] * shape[1], shape[2]]
+            )
+            hidden = tf.concat((featurizer_state["features"], flat_explain), 0)
         else:
             hidden = featurizer_state["features"]
 
         clf_out = classifier(
             hidden=hidden,
-            targets=targets, 
-            n_targets=n_outputs, 
+            targets=targets,
+            n_targets=n_outputs,
             config=config,
             train=train,
             reuse=reuse,
@@ -97,13 +141,17 @@ class Classifier(BaseModel):
             clf_out["logits"] = logits[: shape[0]]
             clf_out["explanation"] = tf.nn.softmax(
                 tf.reshape(
-                    logits[shape[0]:], tf.concat((shape[:2], [tf.shape(logits)[-1]]), 0)
+                    logits[shape[0] :],
+                    tf.concat((shape[:2], [tf.shape(logits)[-1]]), 0),
                 ),
-                -1)
+                -1,
+            )
         return clf_out
 
     def explain(self, Xs):
-        explanation = self._inference(Xs, predict_keys=[PredictMode.EXPLAIN, PredictMode.NORMAL])
+        explanation = self._inference(
+            Xs, predict_keys=[PredictMode.EXPLAIN, PredictMode.NORMAL]
+        )
         classes = self.input_pipeline.label_encoder.target_labels
         out = []
         bases = []
@@ -113,18 +161,27 @@ class Classifier(BaseModel):
             preds.append(values[PredictMode.NORMAL])
             out.append(explain_sample[1:])
             bases.append(explain_sample[0])
-        processed = finetune_to_indico_explain(Xs, out, self.input_pipeline.text_encoder, attention=False)
+        processed = finetune_to_indico_explain(
+            Xs, out, self.input_pipeline.text_encoder, attention=False
+        )
 
         for base, sample, cls in zip(bases, processed, preds):
-            weights = sample['explanation']
+            weights = sample["explanation"]
             weights = np.array([base] + weights[:-1]) - weights
             n_classes = weights.shape[-1]
-            norm = np.max([np.abs(np.max(weights, 0)), abs(np.min(weights, 0))], 0) * n_classes
+            norm = (
+                np.max([np.abs(np.max(weights, 0)), abs(np.min(weights, 0))], 0)
+                * n_classes
+            )
             explanation = weights / norm + 1 / n_classes
 
-            sample['explanation'] = {c: explanation[:, i] for i, c in enumerate(classes)}
-            sample["prediction"] = self.input_pipeline.label_encoder.inverse_transform([cls])[0]
-            
+            sample["explanation"] = {
+                c: explanation[:, i] for i, c in enumerate(classes)
+            }
+            sample["prediction"] = self.input_pipeline.label_encoder.inverse_transform(
+                [cls]
+            )[0]
+
         return processed
 
     def _predict_op(self, logits, **kwargs):
