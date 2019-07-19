@@ -89,9 +89,6 @@ class Classifier(BaseModel):
         :param X: list or array of text to embed.
         :returns: list of dictionaries.  Each dictionary maps from a class label to its assigned class probability.
         """
-        if self.config.use_auxiliary_info:
-            context = X[1]
-            text = X[0]
         return super().predict_proba(X)
 
     def finetune(self, X, Y=None, batch_size=None):
@@ -101,11 +98,6 @@ class Classifier(BaseModel):
         :param batch_size: integer number of examples per batch. When N_GPUS > 1, this number
                            corresponds to the number of training examples provided to each GPU.
         """
-        if self.config.use_auxiliary_info:
-            context = X[1]
-            X = X[0]
-            context_new = self.context_span_to_label_span(context, X)
-            X = [X, context_new]
         return super().finetune(X, Y=Y, batch_size=batch_size)
 
     @classmethod
