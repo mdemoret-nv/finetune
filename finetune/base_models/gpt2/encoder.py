@@ -145,7 +145,12 @@ class GPT2Encoder(BaseEncoder):
             0
         )  # tracks offset between this fields' character_locs, which start at 0, and the 'start' keys in context which track the entire document (not just this field)
 
-        for i, text in enumerate(texts):
+        skipped = 0
+        for i, text in enumerate(texts):  # text = one label span
+            if text == "":
+                skipped += 1
+                continue
+            i -= skipped
             if labels is not None:
                 label = labels[i]
 

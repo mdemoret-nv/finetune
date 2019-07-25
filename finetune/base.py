@@ -61,12 +61,13 @@ class BaseModel(object, metaclass=ABCMeta):
 
         atexit.register(cleanup)
 
-        self.default_context = kwargs.pop("default", None)
+        self.default_context = kwargs.pop("default_context", None)
         if self.default_context is not None and type(self.default_context) != dict:
             raise FinetuneError(
                 "Invalid default given: Need a dictionary of auxiliary info fields and default values."
             )
         self.config = get_config(**kwargs)
+
         self.config.use_auxiliary_info = self.default_context is not None
         self.resolved_gpus = None
         self.validate_config()
@@ -740,6 +741,8 @@ class BaseModel(object, metaclass=ABCMeta):
 
         filled_contexts = []
         for spans, text in zip(context, X):
+            if type(text) == list:
+                text = ''.join(text)
             spans = sorted([c for c in spans], key=lambda c: c["start"])
 
             filled_in_spans = []
@@ -774,7 +777,8 @@ class BaseModel(object, metaclass=ABCMeta):
         return filled_contexts
 
     def generate_default(self, text, start):
-        template = deepcopy(self.default)
+        assert len(text) > 0
+        template = deepcopy(self.default_context)
         template["token"] = text
         template["start"] = start
         template["end"] = start + len(text)
