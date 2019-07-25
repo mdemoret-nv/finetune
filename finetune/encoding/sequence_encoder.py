@@ -383,7 +383,7 @@ def indico_to_finetune_sequence(
                 elif overlap(current_annotation, annotation):
                     merged_annotations.remove(annotation)
                     split_annotations = overlap_handler(
-                        current_annotation, annotation, text, multi_label, "label"
+                        current_annotation, annotation, text, multi_label
                     )
                     queue = split_annotations + queue
                     break
