@@ -389,7 +389,9 @@ class BaseModel(object, metaclass=ABCMeta):
         if self._predictions is None:
             input_fn = self.input_pipeline.get_predict_input_fn(self._data_generator)
             _estimator, hooks = self.get_estimator()
-            self._predictions = _estimator.predict(input_fn=input_fn, predict_keys=predict_keys, hooks=hooks)
+            all_prediction_keys = [PredictMode.NORMAL, PredictMode.PROBAS, PredictMode.FEATURIZE]
+            all_predictions = _estimator.predict(input_fn=input_fn, predict_keys=all_prediction_keys, hooks=hooks)
+            self._predictions = all_predictions
 
         self._clear_prediction_queue()
 
