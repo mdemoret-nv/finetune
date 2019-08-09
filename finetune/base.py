@@ -389,14 +389,13 @@ class BaseModel(object, metaclass=ABCMeta):
         if self._predictions is None:
             input_fn = self.input_pipeline.get_predict_input_fn(self._data_generator)
             _estimator, hooks = self.get_estimator()
-            all_prediction_keys = [PredictMode.NORMAL, PredictMode.PROBAS, PredictMode.FEATURIZE]
-            all_predictions = _estimator.predict(input_fn=input_fn, predict_keys=all_prediction_keys, hooks=hooks)
-            self._predictions = all_predictions
+            self._predictions = _estimator.predict(input_fn=input_fn, predict_keys=predict_keys, hooks=hooks)
 
         self._clear_prediction_queue()
 
         predictions = [None] * n
-        for i in tqdm.tqdm(range(n), total=n, desc="Inference"):
+        n_range = tqdm.tqdm(range(n), total=n, desc="Inference") if n > 10 else range(n)
+        for i in n_range:
             y = next(self._predictions)
             try:
                 y = y[predict_keys[0]] if len(predict_keys) == 1 else y
